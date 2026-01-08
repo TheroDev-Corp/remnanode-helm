@@ -44,3 +44,6 @@ spec:
             to: websecure
             scheme: https
             permanent: true
+      websecure:
+        http3:
+          enabled: true
