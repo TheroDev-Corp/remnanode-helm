@@ -19,6 +19,7 @@ spec:
         fsGroup: 65532
 
     additionalArguments:
+      - "--entrypoints.websecure.http3"
       - "--entrypoints.websecure.http3.advertisedport=443"
       - "--certificatesresolvers.le.acme.tlschallenge=true"
       - "--certificatesresolvers.le.acme.storage=/acme/acme.json"
@@ -41,7 +42,7 @@ spec:
             permanent: true
       websecure:
         http3:
-          enabled: true
+          enabled: false
         tls:
           enabled: true
 
