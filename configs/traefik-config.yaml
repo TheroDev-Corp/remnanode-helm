@@ -5,30 +5,26 @@ metadata:
   namespace: kube-system
 spec:
   valuesContent: |-
-    # Logging
     logs:
       general:
         level: DEBUG
     
-    # Persistence for ACME
     persistence:
       enabled: true
       path: /acme
       size: 128Mi
     
-    # Fix permissions for ACME json
     deployment:
       podSecurityContext:
         fsGroup: 65532
 
-    # Let's Encrypt arguments
     additionalArguments:
+      - "--entrypoints.websecure.http3.advertisedport=443"
       - "--certificatesresolvers.le.acme.tlschallenge=true"
       - "--certificatesresolvers.le.acme.storage=/acme/acme.json"
-      - "--certificatesresolvers.le.acme.email=$(TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_EMAIL)"
+      - "--certificatesresolvers.le.acme.email=\$(TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_EMAIL)"
       - "--certificatesresolvers.le.acme.caServer=https://acme-v02.api.letsencrypt.org/directory"
 
-    # Inject Email
     env:
       - name: TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_EMAIL
         valueFrom:
@@ -36,7 +32,6 @@ spec:
             name: traefik-acme-secret
             key: email
     
-    # Protocol Configuration
     ports:
       web:
         redirections:
