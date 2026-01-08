@@ -16,7 +16,7 @@ spec:
       path: /acme
       size: 128Mi
     
-    # Fix permissions for ACME json (Critical for K3s)
+    # Fix permissions for ACME json
     deployment:
       podSecurityContext:
         fsGroup: 65532
@@ -36,7 +36,7 @@ spec:
             name: traefik-acme-secret
             key: email
     
-    # HTTP -> HTTPS Redirection
+    # Protocol Configuration
     ports:
       web:
         redirections:
@@ -47,3 +47,25 @@ spec:
       websecure:
         http3:
           enabled: true
+        tls:
+          enabled: true
+
+    service:
+      enabled: true
+      type: LoadBalancer
+      ports:
+        web:
+          port: 80
+          protocol: TCP
+          expose: true
+          targetPort: web
+        websecure:
+          port: 443
+          protocol: TCP
+          expose: true
+          targetPort: websecure
+        websecure-udp:
+          port: 443
+          protocol: UDP
+          expose: true
+          targetPort: websecure
