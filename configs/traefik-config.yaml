@@ -59,7 +59,7 @@ spec:
           protocol: TCP
           expose: true
           targetPort: websecure
-        websecure-udp:
+        websecure-http3:
           port: 443
           protocol: UDP
           expose: true
