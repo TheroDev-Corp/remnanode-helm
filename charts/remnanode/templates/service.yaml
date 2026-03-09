@@ -1,10 +1,13 @@
+# templates/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ include "remnanode.fullname" . }}
+  labels:
+    {{- include "remnanode.labels" . | nindent 4 }}
 spec:
   selector:
-    app: {{ .Release.Name }}
+    {{- include "remnanode.selectorLabels" . | nindent 4 }}
   ports:
     - port: 80
       name: http

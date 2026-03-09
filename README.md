@@ -1,54 +1,95 @@
-# Remnanode K3s Stack
+# RemnaNode Helm Chart
 
-High-performance, configuration-driven Xray node deployment on Kubernetes (K3s).
-Designed for Remnawave Controller
-
-## Features
-
-* **Configuration Driven:** All settings are managed via a single `secrets.yaml` file
-* **Multi-Protocol Support:**
-  * **Reality/Trojan:** TCP Passthrough via Traefik (SNI routing)
-  * **WebSocket:** Secure Path routing with automatic SSL
-  * **XHTTP:** Native support without WS header interference
-  * **gRPC:** Full HTTP/2 (h2c) support
-  * **Shadowsocks:** Direct HostPort access (TCP + UDP) for maximum performance
-* **Automatic SSL:** Traefik + Let's Encrypt (TLS 1.3)
-* **Auto-Updates:** Daily automatic restart and database updates
+A highly configurable, production-ready Helm chart for deploying a Remnawave Xray node on Kubernetes.
 
 ## Prerequisites
 
-* A fresh Linux server (Debian/Ubuntu recommended)
-* Domain name pointed to the server's IP
-* Root access
+* Kubernetes cluster (K3s, EKS, GKE, etc.)
+* Helm 3.0+
+* **Traefik Ingress Controller** installed (this chart uses Traefik's `IngressRoute` and `IngressRouteTCP` CRDs)
 
-## Quick Start
+## Features
 
-1. **Clone the repository:**
+* **Multi-Protocol Support:**
+  * **Reality/Trojan:** TCP Passthrough via Traefik (SNI routing)
+  * **WebSocket:** Secure Path routing with automatic WS headers
+  * **XHTTP:** Native HTTP routing
+  * **gRPC:** Full HTTP/2 (h2c) support
+  * **Shadowsocks:** Direct HostPort access (TCP + UDP)
+* **Website Camouflage:** Optional lightweight web server for probe resistance.
+* **Auto-Updates:** Configurable CronJob to securely update `geoip.dat`, `geosite.dat`, and `zapret.dat`.
+* **Security First:** Principle of least privilege applied. The main pods do not have Kubernetes API access.
 
-    ```bash
-    git clone https://github.com/Th3roo/remnanode-k8s-deployment.git
-    cd remnanode_k3s
-    ```
+## Installation
 
-2. **Configure secrets:**
+1. Add the repository (if hosted) or clone this repo:
 
-    ```bash
-    cp secrets.example.yaml secrets.yaml
-    nano secrets.yaml
-    ```
+   ```bash
+   git clone https://github.com/YOUR_NAME/remnanode-helm.git
+   cd remnanode-helm
+   ```
 
-    *Fill in your Email, Domain, Secret Key, and define your Inbounds*
+2. Create a custom values file (e.g., `my-values.yaml`). See the configuration example below.
 
-3. **Deploy:**
+3. Install the chart:
 
-    ```bash
-    chmod +x deploy.sh
-    sudo ./deploy.sh
-    ```
+   ```bash
+   helm upgrade --install remnanode . \
+     --namespace remnanode \
+     --create-namespace \
+     -f my-values.yaml
+   ```
 
-## Configuration Reference (`secrets.yaml`)
+## Configuration Example (`my-values.yaml`)
 
-Define your inbounds in the `inbounds` list. The deployment script will automatically generate Ingress rules, Services, and open ports based on the `mode`
+This replaces the old `secrets.yaml` approach. You only need to define what you want to override from the default `values.yaml`.
+
+```yaml
+global:
+  domain: "node1.your-domain.com"
+
+node:
+  secretKey: "YOUR_SUPER_SECRET_KEY_FROM_PANEL"
+  # existingSecret: "my-vault-secret" # Use this if you manage secrets via external tools
+
+autoUpdate:
+  enabled: true
+  schedule: "30 3 * * *" # Every day at 03:30 AM
+
+ingress:
+  enabled: true
+  tls:
+    enabled: true
+    certResolver: "le" # Name of your Traefik Let's Encrypt resolver
+    # secretName: "my-custom-tls-secret" # Use this instead if using cert-manager
+
+inbounds:
+  # VLESS TCP REALITY (Layer 4 Passthrough)
+  - name: vless-vk
+    port: 10001
+    mode: ingress-sni
+    sni:
+      - "www.vk.com"
+
+  # VLESS WebSocket (Layer 7)
+  - name: vless-ws
+    port: 10003
+    mode: ingress-path
+    path: "/api/media/" 
+
+  # TROJAN gRPC (Layer 7 HTTP/2)
+  - name: trojan-grpc
+    port: 10005
+    mode: ingress-grpc
+    serviceName: "k8sSecurityTraffic"
+
+  # SHADOWSOCKS (Direct Host Port)
+  - name: ss2022-std
+    port: 993
+    mode: direct
+```
+
+## Supported Inbound Modes
 
 | Mode | Description | Use Case |
 | :--- | :--- | :--- |
@@ -56,43 +97,28 @@ Define your inbounds in the `inbounds` list. The deployment script will automati
 | `ingress-path` | HTTP/WS Routing (Layer 7). Adds WS headers. | VLESS WebSocket, VMess WS |
 | `ingress-xhttp` | HTTP Routing (Layer 7). No extra headers. | Trojan XHTTP, VLESS XHTTP |
 | `ingress-grpc` | HTTP/2 h2c Routing. Matches ServiceName. | VLESS gRPC, Trojan gRPC |
-| `direct` | Direct HostPort mapping. Opens TCP & UDP. | Shadowsocks, Fallbacks |
+| `direct` | Direct HostPort mapping. Opens TCP & UDP on the node. | Shadowsocks, Fallbacks |
 
-### Important Panel Settings (Remnawave)
+## Panel Configuration (Remnawave)
 
-When configuring Inbounds in the Remnawave Panel:
+When configuring Inbounds in your Remnawave Panel:
 
-1. **Listen IP:** Always set to `0.0.0.0`
-2. **Security:** Set to `none` (Traefik handles TLS termination). And set TLS in remnaware panel advanced host settings
-3. **Sniffing:**
-    * **Reality/Shadowsocks:** Can be Enabled
-    * **gRPC/XHTTP:** **MUST be Disabled**
-4. **Host:**
-    * **WS/XHTTP:** Set to your domain (e.g., `example.com`) to match Traefik headers
+1. **Listen IP:** `0.0.0.0`
+2. **Port:** Must match the `port` defined in your `values.yaml` (e.g., `10001`).
+3. **Security:** `none` (TLS termination is handled by Traefik). Configure TLS inside the panel's Advanced Host Settings instead.
+4. **Sniffing:**
+   * **Enable** for Reality/Shadowsocks.
+   * **DISABLE** for gRPC/XHTTP/WS.
 
 ## Troubleshooting
 
-**Check Pod Status:**
+Restart the node manually:
 
 ```bash
-kubectl get pods -n remnanode
+kubectl rollout restart deployment remnanode -n remnanode
 ```
 
-**Check Xray Logs:**
+Check node logs:
 
 ```bash
-kubectl logs -f -n remnanode -l app=remnanode -c remnanode
-```
-
-**Check Traefik Logs:**
-
-```bash
-kubectl logs -f -n kube-system -l app.kubernetes.io/name=traefik
-```
-
-**Full Reset (Uninstall):**
-
-```bash
-helm uninstall remnanode -n remnanode
-kubectl delete ns remnanode
-```
+kubectl logs -f -l app.kubernetes.io/name=remnanode -c remnanode -n remnanode
