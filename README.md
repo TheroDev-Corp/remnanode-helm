@@ -42,7 +42,7 @@ A highly configurable, production-ready Helm chart for deploying a Remnawave Xra
 
 ## Configuration Example (`my-values.yaml`)
 
-This replaces the old `secrets.yaml` approach. You only need to define what you want to override from the default `values.yaml`.
+You only need to define what you want to override from the default `values.yaml`.
 
 ```yaml
 global:
@@ -122,3 +122,4 @@ Check node logs:
 
 ```bash
 kubectl logs -f -l app.kubernetes.io/name=remnanode -c remnanode -n remnanode
+```
