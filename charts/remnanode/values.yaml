@@ -3,6 +3,17 @@
 global:
   domain: "example.com"
 
+# Настройки автоматического обновления баз (geoip/geosite/zapret) и рестарта
+autoUpdate:
+  enabled: true
+  # Расписание в формате Cron. По умолчанию: каждый день в 04:00
+  schedule: "0 4 * * *"
+  # Образ kubectl для выполнения рестарта
+  image:
+    repository: bitnami/kubectl
+    tag: latest
+    pullPolicy: IfNotPresent
+
 # Настройки для сайта-заглушки
 website:
   enabled: true

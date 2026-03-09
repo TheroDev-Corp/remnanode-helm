@@ -1,19 +1,30 @@
+# charts/remnanode/templates/cronjob.yaml
+{{- if .Values.autoUpdate.enabled }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ .Release.Name }}-daily-update
+  name: {{ include "remnanode.fullname" . }}-daily-update
+  labels:
+    {{- include "remnanode.labels" . | nindent 4 }}
 spec:
-  schedule: "0 4 * * *" # Daily at 4:00 AM
+  schedule: {{ .Values.autoUpdate.schedule | quote }}
+  concurrencyPolicy: Forbid # Запрещаем одновременный запуск нескольких джобов
   jobTemplate:
     spec:
       template:
+        metadata:
+          labels:
+            app.kubernetes.io/component: cronjob
         spec:
-          serviceAccountName: {{ .Release.Name }}-updater
+          # Привязываем сервисный аккаунт ТОЛЬКО к CronJob
+          serviceAccountName: {{ include "remnanode.fullname" . }}-updater
           containers:
           - name: kubectl
-            image: bitnami/kubectl:latest
+            image: "{{ .Values.autoUpdate.image.repository }}:{{ .Values.autoUpdate.image.tag }}"
+            imagePullPolicy: {{ .Values.autoUpdate.image.pullPolicy }}
             command:
             - /bin/sh
             - -c
-            - kubectl rollout restart deployment/{{ .Release.Name }}
+            - kubectl rollout restart deployment/{{ include "remnanode.fullname" . }}
           restartPolicy: OnFailure
+{{- end }}

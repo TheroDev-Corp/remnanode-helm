@@ -1,14 +1,19 @@
+# charts/remnanode/templates/rbac.yaml
+{{- if .Values.autoUpdate.enabled }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ .Release.Name }}-updater
+  name: {{ include "remnanode.fullname" . }}-updater
+  labels:
+    {{- include "remnanode.labels" . | nindent 4 }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ .Release.Name }}-restarter
+  name: {{ include "remnanode.fullname" . }}-restarter
+  labels:
+    {{- include "remnanode.labels" . | nindent 4 }}
 rules:
-  # Allow managing Deployments for restart purposes
   - apiGroups: ["apps", "extensions"]
     resources: ["deployments"]
     verbs: ["get", "patch", "list", "watch"]
@@ -16,12 +21,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ .Release.Name }}-restarter-binding
+  name: {{ include "remnanode.fullname" . }}-restarter-binding
+  labels:
+    {{- include "remnanode.labels" . | nindent 4 }}
 subjects:
   - kind: ServiceAccount
-    name: {{ .Release.Name }}-updater
+    name: {{ include "remnanode.fullname" . }}-updater
     namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
-  name: {{ .Release.Name }}-restarter
+  name: {{ include "remnanode.fullname" . }}-restarter
   apiGroup: rbac.authorization.k8s.io
+{{- end }}

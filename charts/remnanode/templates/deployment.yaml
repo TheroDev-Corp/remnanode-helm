@@ -20,9 +20,7 @@ spec:
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
       {{- end }}
     spec:
-      serviceAccountName: {{ include "remnanode.fullname" . }}-updater
-      
-      # InitContainer стал чуть надежнее (добавлен таймаут)
+      automountServiceAccountToken: false
       initContainers:
       - name: db-downloader
         image: alpine:latest
