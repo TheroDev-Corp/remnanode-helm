@@ -1,4 +1,3 @@
-# charts/remnanode/templates/ingress.yaml
 {{- if .Values.ingress.enabled }}
 {{- $fullName := include "remnanode.fullname" . -}}
 {{- $domain := .Values.global.domain -}}
@@ -43,7 +42,7 @@ spec:
   {{- end }}
 
 ---
-# Маршрутизация на основе Inbounds
+# Routing based on Inbounds
 {{- range .Values.inbounds }}
 
 {{- /* 2. WebSocket & XHTTP Routing */}}
@@ -125,7 +124,7 @@ spec:
       services:
         - name: {{ $fullName }}
           port: {{ .port }}
-  # Для SNI (Reality) TLS всегда прозрачный (passthrough)
+  # For SNI (Reality), TLS is always passthrough
   tls:
     passthrough: true
 ---

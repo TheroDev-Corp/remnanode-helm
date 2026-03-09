@@ -1,4 +1,3 @@
-# charts/remnanode/templates/cronjob.yaml
 {{- if .Values.autoUpdate.enabled }}
 apiVersion: batch/v1
 kind: CronJob
@@ -8,7 +7,7 @@ metadata:
     {{- include "remnanode.labels" . | nindent 4 }}
 spec:
   schedule: {{ .Values.autoUpdate.schedule | quote }}
-  concurrencyPolicy: Forbid # Запрещаем одновременный запуск нескольких джобов
+  concurrencyPolicy: Forbid # Prevent concurrent executions of the job
   jobTemplate:
     spec:
       template:
@@ -16,7 +15,7 @@ spec:
           labels:
             app.kubernetes.io/component: cronjob
         spec:
-          # Привязываем сервисный аккаунт ТОЛЬКО к CronJob
+          # Bind the service account ONLY to the CronJob
           serviceAccountName: {{ include "remnanode.fullname" . }}-updater
           containers:
           - name: kubectl
