@@ -1,6 +1,15 @@
+# charts/remnanode/values.yaml
+
+global:
+  domain: "example.com"
+
+# Настройки для сайта-заглушки
 website:
-  image: th3ro/remnanode_website:latest
-  pullPolicy: Always
+  enabled: true
+  image:
+    repository: th3ro/remnanode_website
+    tag: latest
+    pullPolicy: Always
   resources:
     requests:
       cpu: "10m"
@@ -9,8 +18,12 @@ website:
       cpu: "200m"
       memory: "128Mi"
 
+# Настройки ядра Xray
 node:
-  image: remnawave/node:2.3.0
+  image:
+    repository: remnawave/node
+    tag: 2.3.0
+    pullPolicy: IfNotPresent
   apiPort: 2222
   resources:
     requests:
@@ -19,19 +32,28 @@ node:
     limits:
       cpu: "1000m"
       memory: "1024Mi"
+  
+  # Практика безопасности: позволяем передать уже существующий секрет
+  # Если указано, чарт не будет создавать свой Secret для SECRET_KEY
+  existingSecret: ""
+  secretKey: "" # Используется, если existingSecret пустой
 
-# Main domain for website/fallback
-domain: "example.com"
-email: "admin@example.com"
+# Настройки маршрутизации и сертификатов (Универсальный блок)
+ingress:
+  enabled: true
+  tls:
+    enabled: true
+    # Вариант 1: Использовать встроенный резолвер Traefik (Let's Encrypt)
+    certResolver: "le" 
+    # Вариант 2: Использовать существующий Kubernetes Secret (например, от cert-manager)
+    # Если указан secretName, certResolver будет проигнорирован
+    secretName: ""
 
-secretKey: ""
-
-# INBOUND CONFIGURATION MODES:
-# - ingress-sni:   TCP Passthrough via Traefik (Reality/Trojan). Requires 'sni'.
-# - ingress-path:  HTTP/WS routing via Traefik (WebSocket). Requires 'path'.
-# - ingress-xhttp: HTTP routing specifically for XHTTP. Requires 'path'.
-# - ingress-grpc:  HTTP/2 h2c routing for gRPC. Requires 'serviceName'.
-# - direct:        Direct HostPort access (Shadowsocks, Fallbacks). Supports TCP & UDP.
-
+# Конфигурация портов и режимов
+# Поддерживаемые режимы (mode): ingress-sni, ingress-path, ingress-xhttp, ingress-grpc, direct
 inbounds: []
-# Note: Configuration is handled via secrets.yaml
+# Пример:
+# - name: vless-ws
+#   port: 10003
+#   mode: ingress-path
+#   path: "/api/media/"

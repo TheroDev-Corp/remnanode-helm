@@ -1,7 +1,14 @@
+# charts/remnanode/templates/ingress.yaml
+{{- if .Values.ingress.enabled }}
+{{- $fullName := include "remnanode.fullname" . -}}
+{{- $domain := .Values.global.domain -}}
+
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
-  name: {{ .Release.Name }}-ws-headers
+  name: {{ $fullName }}-ws-headers
+  labels:
+    {{- include "remnanode.labels" . | nindent 4 }}
 spec:
   headers:
     customRequestHeaders:
@@ -14,109 +21,115 @@ spec:
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: {{ .Release.Name }}-web
+  name: {{ $fullName }}-web
+  labels:
+    {{- include "remnanode.labels" . | nindent 4 }}
 spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`{{ .Values.domain }}`)
+    - match: Host(`{{ $domain }}`)
       kind: Rule
       services:
-        - name: {{ .Release.Name }}
+        - name: {{ $fullName }}
           port: 80
+  {{- if .Values.ingress.tls.enabled }}
   tls:
-    certResolver: le
+    {{- if .Values.ingress.tls.secretName }}
+    secretName: {{ .Values.ingress.tls.secretName }}
+    {{- else if .Values.ingress.tls.certResolver }}
+    certResolver: {{ .Values.ingress.tls.certResolver }}
+    {{- end }}
+  {{- end }}
 
 ---
-# 2. WebSocket Routing
+# Маршрутизация на основе Inbounds
 {{- range .Values.inbounds }}
-{{- if eq .mode "ingress-path" }}
+
+{{- /* 2. WebSocket & XHTTP Routing */}}
+{{- if or (eq .mode "ingress-path") (eq .mode "ingress-xhttp") }}
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: {{ $.Release.Name }}-{{ .name }}
+  name: {{ $fullName }}-{{ .name }}
+  labels:
+    {{- include "remnanode.labels" $ | nindent 4 }}
 spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`{{ $.Values.domain }}`) && PathPrefix(`{{ .path }}`)
+    - match: Host(`{{ $domain }}`) && PathPrefix(`{{ .path }}`)
       kind: Rule
+      {{- if eq .mode "ingress-path" }}
       middlewares:
-        - name: {{ $.Release.Name }}-ws-headers
+        - name: {{ $fullName }}-ws-headers
+      {{- end }}
       services:
-        - name: {{ $.Release.Name }}
+        - name: {{ $fullName }}
           port: {{ .port }}
           passHostHeader: true
+  {{- if $.Values.ingress.tls.enabled }}
   tls:
-    certResolver: le
+    {{- if $.Values.ingress.tls.secretName }}
+    secretName: {{ $.Values.ingress.tls.secretName }}
+    {{- else if $.Values.ingress.tls.certResolver }}
+    certResolver: {{ $.Values.ingress.tls.certResolver }}
+    {{- end }}
+  {{- end }}
 ---
 {{- end }}
-{{- end }}
 
-# 3. XHTTP Routing (No WS headers)
-{{- range .Values.inbounds }}
-{{- if eq .mode "ingress-xhttp" }}
-apiVersion: traefik.io/v1alpha1
-kind: IngressRoute
-metadata:
-  name: {{ $.Release.Name }}-{{ .name }}
-spec:
-  entryPoints:
-    - websecure
-  routes:
-    - match: Host(`{{ $.Values.domain }}`) && PathPrefix(`{{ .path }}`)
-      kind: Rule
-      services:
-        - name: {{ $.Release.Name }}
-          port: {{ .port }}
-          passHostHeader: true
-  tls:
-    certResolver: le
----
-{{- end }}
-{{- end }}
-
-# 4. gRPC Routing (h2c scheme)
-{{- range .Values.inbounds }}
+{{- /* 3. gRPC Routing */}}
 {{- if eq .mode "ingress-grpc" }}
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
 metadata:
-  name: {{ $.Release.Name }}-{{ .name }}
+  name: {{ $fullName }}-{{ .name }}
+  labels:
+    {{- include "remnanode.labels" $ | nindent 4 }}
 spec:
   entryPoints:
     - websecure
   routes:
-    - match: Host(`{{ $.Values.domain }}`) && PathPrefix(`/{{ .serviceName }}`)
+    - match: Host(`{{ $domain }}`) && PathPrefix(`/{{ .serviceName }}`)
       kind: Rule
       services:
-        - name: {{ $.Release.Name }}
+        - name: {{ $fullName }}
           port: {{ .port }}
           passHostHeader: true
           scheme: h2c
+  {{- if $.Values.ingress.tls.enabled }}
   tls:
-    certResolver: le
+    {{- if $.Values.ingress.tls.secretName }}
+    secretName: {{ $.Values.ingress.tls.secretName }}
+    {{- else if $.Values.ingress.tls.certResolver }}
+    certResolver: {{ $.Values.ingress.tls.certResolver }}
+    {{- end }}
+  {{- end }}
 ---
 {{- end }}
-{{- end }}
 
-# 5. Reality/Trojan (SNI Routing)
-{{- range .Values.inbounds }}
+{{- /* 4. Reality/Trojan (SNI TCP Routing) */}}
 {{- if eq .mode "ingress-sni" }}
 apiVersion: traefik.io/v1alpha1
 kind: IngressRouteTCP
 metadata:
-  name: {{ $.Release.Name }}-{{ .name }}
+  name: {{ $fullName }}-{{ .name }}
+  labels:
+    {{- include "remnanode.labels" $ | nindent 4 }}
 spec:
   entryPoints:
     - websecure
   routes:
     - match: {{ range $i, $d := .sni }}{{ if $i }} || {{ end }}HostSNI(`{{ $d }}`){{ end }}
       services:
-        - name: {{ $.Release.Name }}
+        - name: {{ $fullName }}
           port: {{ .port }}
+  # Для SNI (Reality) TLS всегда прозрачный (passthrough)
   tls:
     passthrough: true
 ---
 {{- end }}
-{{- end }}
+
+{{- end }}{{/* End range inbounds */}}
+{{- end }}{{/* End if ingress.enabled */}}

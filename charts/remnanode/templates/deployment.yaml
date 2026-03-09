@@ -1,26 +1,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ include "remnanode.fullname" . }}
   labels:
-    app: {{ .Release.Name }}
+    {{- include "remnanode.labels" . | nindent 4 }}
 spec:
   replicas: 1
   strategy:
-    type: Recreate # Recreate strategy prevents port conflicts during updates
+    type: Recreate
   selector:
     matchLabels:
-      app: {{ .Release.Name }}
+      {{- include "remnanode.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ .Release.Name }}
+        {{- include "remnanode.selectorLabels" . | nindent 8 }}
+      {{- if not .Values.node.existingSecret }}
       annotations:
-        # Force pod recreation if secrets change
-        checksum/config: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      {{- end }}
     spec:
-      serviceAccountName: {{ .Release.Name }}-updater
+      serviceAccountName: {{ include "remnanode.fullname" . }}-updater
       
+      # InitContainer стал чуть надежнее (добавлен таймаут)
       initContainers:
       - name: db-downloader
         image: alpine:latest
@@ -30,27 +32,27 @@ spec:
             echo ">>> Downloading Xray Databases..."
             apk add --no-cache wget
             mkdir -p /data
-            wget -qO /data/zapret.dat https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat
-            wget -qO /data/geoip.dat https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat
-            wget -qO /data/geosite.dat https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat
+            wget -T 10 -qO /data/zapret.dat https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat || echo "Failed zapret.dat"
+            wget -T 10 -qO /data/geoip.dat https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat || echo "Failed geoip.dat"
+            wget -T 10 -qO /data/geosite.dat https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat || echo "Failed geosite.dat"
         volumeMounts:
         - name: xray-data
           mountPath: /data
 
       containers:
-        # 1. Website Sidecar
+        {{- if .Values.website.enabled }}
         - name: website
-          image: {{ .Values.website.image }}
-          imagePullPolicy: {{ .Values.website.pullPolicy }}
+          image: "{{ .Values.website.image.repository }}:{{ .Values.website.image.tag }}"
+          imagePullPolicy: {{ .Values.website.image.pullPolicy }}
           ports:
             - containerPort: 80
               name: http
           resources:
             {{- toYaml .Values.website.resources | nindent 12 }}
+        {{- end }}
 
-        # 2. Remnanode Xray Core
         - name: remnanode
-          image: {{ .Values.node.image }}
+          image: "{{ .Values.node.image.repository }}:{{ .Values.node.image.tag }}"
           securityContext:
             capabilities:
               add: ["NET_ADMIN"]
@@ -60,7 +62,7 @@ spec:
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Release.Name }}-secrets
+                  name: {{ coalesce .Values.node.existingSecret (printf "%s-secrets" (include "remnanode.fullname" .)) }}
                   key: SECRET_KEY
             - name: XRAY_LOCATION_ASSET
               value: /usr/local/bin
