@@ -25,7 +25,7 @@ A highly configurable, production-ready Helm chart for deploying a Remnawave Xra
 1. Add the repository (if hosted) or clone this repo:
 
    ```bash
-   git clone https://github.com/YOUR_NAME/remnanode-helm.git
+   git clone https://github.com/TheroDev-Corp/remnanode-helm.git
    cd remnanode-helm
    ```
 
