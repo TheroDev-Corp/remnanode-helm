@@ -31,7 +31,7 @@ website:
 node:
   image:
     repository: remnawave/node
-    tag: 2.3.0
+    tag: 2.6.1
     pullPolicy: IfNotPresent
   apiPort: 2222
   resources:
