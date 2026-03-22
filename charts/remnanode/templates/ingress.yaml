@@ -16,6 +16,20 @@ spec:
       Connection: "Upgrade"
 
 ---
+{{- if .Values.ingress.tls.redirect }}
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: {{ $fullName }}-redirect
+  labels:
+    {{- include "remnanode.labels" . | nindent 4 }}
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+{{- end }}
+
+---
 # 1. Main Website (Fallback/Camouflage)
 apiVersion: traefik.io/v1alpha1
 kind: IngressRoute
@@ -42,6 +56,28 @@ spec:
     {}
     {{- end }}
   {{- end }}
+
+---
+{{- if .Values.ingress.tls.redirect }}
+# 1.1 HTTP to HTTPS Redirect (Stub Site)
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ $fullName }}-web-redirect
+  labels:
+    {{- include "remnanode.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: Host(`{{ $domain }}`)
+      kind: Rule
+      middlewares:
+        - name: {{ $fullName }}-redirect
+      services:
+        - name: {{ $fullName }}
+          port: 80
+{{- end }}
 
 ---
 # Routing based on Inbounds
