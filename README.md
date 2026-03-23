@@ -78,28 +78,51 @@ ingress:
     # secretName: "my-custom-tls-secret" # Use this instead if using cert-manager
 
 inbounds:
-  # VLESS TCP REALITY (Layer 4 Passthrough)
+  # 1. VLESS TCP REALITY 443 -> Internal port 10001
   - name: vless-vk
     port: 10001
     mode: ingress-sni
     sni:
       - "www.vk.com"
 
-  # VLESS WebSocket (Layer 7)
+  # 2. TROJAN TCP REALITY 443 -> Internal port 10002
+  - name: trojan-queue
+    port: 10002
+    mode: ingress-sni
+    sni:
+      - "queuev4.vk.com"
+
+  # 3. VLESS WS 80/443 -> Internal port 10003
   - name: vless-ws
     port: 10003
     mode: ingress-path
     path: "/api/media/" 
 
-  # TROJAN gRPC (Layer 7 HTTP/2)
+  # 4. TROJAN XHTTP 80/443 -> Internal port 10004
+  - name: trojan-xhttp
+    port: 10004
+    mode: ingress-xhttp
+    path: "/api/video/"
+
+  # 5. TROJAN GRPC 80/443 -> Internal port 10005
   - name: trojan-grpc
     port: 10005
     mode: ingress-grpc
     serviceName: "k8sSecurityTraffic"
 
-  # SHADOWSOCKS (Direct Host Port)
+  # 6. SHADOWSOCKS -> Direct port 993
   - name: ss2022-std
     port: 993
+    mode: direct
+
+  # 7. VLESS REALITY FALLBACK -> Direct port 54223
+  - name: vless-fallback
+    port: 54223
+    mode: direct
+
+  # 8. SHADOWSOCKS FALLBACK -> Direct port 63042
+  - name: ss2022-fallback
+    port: 63042
     mode: direct
 ```
 
