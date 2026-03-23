@@ -51,6 +51,19 @@ global:
 node:
   secretKey: "YOUR_SUPER_SECRET_KEY_FROM_PANEL"
   # existingSecret: "my-vault-secret" # Use this if you manage secrets via external tools
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1024Mi"
+
+website:
+  enabled: true
+  image:
+    repository: th3ro/remnanode_website
+    tag: latest
 
 autoUpdate:
   enabled: true
@@ -60,6 +73,7 @@ ingress:
   enabled: true
   tls:
     enabled: true
+    redirect: true # Automatically redirect HTTP to HTTPS
     certResolver: "le" # Name of your Traefik Let's Encrypt resolver
     # secretName: "my-custom-tls-secret" # Use this instead if using cert-manager
 
@@ -88,6 +102,37 @@ inbounds:
     port: 993
     mode: direct
 ```
+
+## Detailed Configuration Reference
+
+| Parameter | Description | Default |
+| :--- | :--- | :--- |
+| `global.domain` | Primary domain name for the node. | `example.com` |
+| **node** | **Core Node Settings** | |
+| `node.image.repository` | Xray-core node image repository. | `remnawave/node` |
+| `node.image.tag` | Xray-core node image tag. | `2.6.1` |
+| `node.apiPort` | Port for the Xray API (internal communication). | `2222` |
+| `node.secretKey` | Secret key from the Remnawave Panel. | `""` |
+| `node.existingSecret` | Name of an existing secret for the secret key. | `""` |
+| `node.resources` | CPU/Memory requests and limits for the node pod. | See `values.yaml` |
+| **website** | **Camouflage Website (Probe Resistance)** | |
+| `website.enabled` | Enable the fallback/camouflage website. | `true` |
+| `website.image.repository` | Image for the camouflage website. | `th3ro/remnanode_website` |
+| `website.image.tag` | Tag for the camouflage website image. | `latest` |
+| `website.resources` | CPU/Memory requests and limits for the website pod. | See `values.yaml` |
+| **autoUpdate** | **Update Automation (geoip/geosite/zapret)** | |
+| `autoUpdate.enabled` | Enable the update CronJob. | `true` |
+| `autoUpdate.schedule` | Cron schedule for the updates. | `0 4 * * *` |
+| `autoUpdate.image.repository` | Kubectl image used to trigger rollouts. | `bitnami/kubectl` |
+| `autoUpdate.image.tag` | Tag for the kubectl image. | `latest` |
+| **ingress** | **Routing & TLS (Traefik Specific)** | |
+| `ingress.enabled` | Enable Ingress/IngressRoute creation. | `true` |
+| `ingress.tls.enabled` | Enable TLS for all ingresses. | `true` |
+| `ingress.tls.redirect` | Enable HTTP to HTTPS redirection. | `true` |
+| `ingress.tls.certResolver` | Traefik cert resolver (e.g., `le`). | `le` |
+| `ingress.tls.secretName` | Existing Kubernetes TLS secret (ignores certResolver). | `""` |
+| **inbounds** | **Xray Inbounds Configuration** | |
+| `inbounds` | List of protocol-specific inbound configurations. | `[]` |
 
 ## Supported Inbound Modes
 
