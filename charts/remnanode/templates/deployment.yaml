@@ -23,16 +23,36 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: db-downloader
-        image: alpine:3.23.3
+        image: curlimages/curl:8.18.0
         command: ["/bin/sh", "-c"]
         args:
           - |
-            echo ">>> Downloading Xray Databases..."
-            apk add --no-cache wget
+            echo ">>> Starting Database Download Process..."
             mkdir -p /data
-            wget -T 10 -qO /data/zapret.dat https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat || echo "Failed zapret.dat"
-            wget -T 10 -qO /data/geoip.dat https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat || echo "Failed geoip.dat"
-            wget -T 10 -qO /data/geosite.dat https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat || echo "Failed geosite.dat"
+            
+            download_file() {
+                local url=$1
+                local dest=$2
+                echo "---"
+                echo "[STEP] Downloading $(basename $dest)..."
+                # --connect-timeout 15: Fail if connection is not established within 15s
+                # --max-time 300: Fail if the whole download takes more than 5 minutes
+                # --retry 3: Retry on transient failures
+                if curl -sSL --connect-timeout 15 --max-time 300 --retry 3 -o "$dest" "$url"; then
+                    echo "[OK] $(basename $dest) downloaded successfully."
+                    ls -lh "$dest"
+                else
+                    echo "[WARNING] Failed to download $(basename $dest). Skipping..."
+                    # Ensure the file exists so the subPath mount in the main container doesn't fail
+                    [ ! -f "$dest" ] && touch "$dest"
+                fi
+            }
+
+            download_file "https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat" "/data/zapret.dat"
+            download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat" "/data/geoip.dat"
+            download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat" "/data/geosite.dat"
+
+            echo ">>> Database update step finished."
         volumeMounts:
         - name: xray-data
           mountPath: /data
