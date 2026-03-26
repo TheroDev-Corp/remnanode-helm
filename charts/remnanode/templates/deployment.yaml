@@ -23,7 +23,7 @@ spec:
       automountServiceAccountToken: false
       initContainers:
       - name: db-downloader
-        image: alpine:latest
+        image: alpine:3.23.3
         command: ["/bin/sh", "-c"]
         args:
           - |
