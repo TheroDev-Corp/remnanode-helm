@@ -171,6 +171,8 @@ spec:
       services:
         - name: {{ $fullName }}
           port: {{ .port }}
+          proxyProtocol:
+            version: 2
   # For SNI (Reality), TLS is always passthrough
   tls:
     passthrough: true
