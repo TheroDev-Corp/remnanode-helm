@@ -19,7 +19,7 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/configmap-downloader.yaml") . | sha256sum }}
     spec:
       automountServiceAccountToken: false
-      hostNetwork: {{ .Values.node.hostNetwork | default false }}
+      hostNetwork: {{ if .Values.node.hostNetwork }}true{{ else }}false{{ end }}
       dnsPolicy: {{ if .Values.node.hostNetwork }}ClusterFirstWithHostNet{{ else }}ClusterFirst{{ end }}
 
       initContainers:
