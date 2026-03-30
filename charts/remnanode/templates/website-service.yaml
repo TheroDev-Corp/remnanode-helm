@@ -1,0 +1,17 @@
+{{- if .Values.website.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "remnanode.fullname" . }}-website
+  labels:
+    {{- include "remnanode.labels" . | nindent 4 }}
+    app.kubernetes.io/component: website
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "remnanode.name" . }}-website
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - port: 80
+      name: http
+      targetPort: 80
+{{- end }}

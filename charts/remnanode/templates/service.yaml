@@ -1,4 +1,3 @@
-# templates/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -9,10 +8,6 @@ spec:
   selector:
     {{- include "remnanode.selectorLabels" . | nindent 4 }}
   ports:
-    - port: 80
-      name: http
-      targetPort: http
-    
     # Expose ports for all Ingress-based modes (SNI, Path, gRPC, XHTTP)
     {{- range .Values.inbounds }}
     {{- if ne .mode "direct" }}
