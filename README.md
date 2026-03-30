@@ -133,10 +133,10 @@ inbounds:
 | `global.domain` | Primary domain name for the node. | `example.com` |
 | **node** | **Core Node Settings** | |
 | `node.image.repository` | Xray-core node image repository. | `remnawave/node` |
-| `node.image.tag` | Xray-core node image tag. | `2.6.1` |
+| `node.image.tag` | Xray-core node image tag. | `2.7.0` |
 | `node.apiPort` | Port for the Xray API (internal communication). | `2222` |
+| `node.hostNetwork` | Enable host network (required for Torrent Blocker & nftables plugins). | `false` |
 | `node.secretKey` | Secret key from the Remnawave Panel. | `""` |
-| `node.existingSecret` | Name of an existing secret for the secret key. | `""` |
 | `node.resources` | CPU/Memory requests and limits for the node pod. | See `values.yaml` |
 | **website** | **Camouflage Website (Probe Resistance)** | |
 | `website.enabled` | Enable the fallback/camouflage website. | `true` |
@@ -177,6 +177,12 @@ When configuring Inbounds in your Remnawave Panel:
 4. **Sniffing:**
    * **Enable** for Reality/Shadowsocks.
    * **DISABLE** for gRPC/XHTTP/WS.
+
+## Remnawave Node Plugins (Torrent Blocker, etc.)
+
+If you want to use the Remnawave Node Plugins that manipulate the server's firewall (`nftables`) to block torrents or drop connections, you **must** set `node.hostNetwork: true` in your values file. 
+
+Because the pod runs in an isolated network namespace by default, it cannot modify the global `nftables` of the Kubernetes node unless `hostNetwork` is enabled. The chart already grants the `NET_ADMIN` capability by default, which is the second requirement for these plugins.
 
 ## Troubleshooting
 

@@ -42,6 +42,9 @@ node:
       cpu: "1000m"
       memory: "1024Mi"
 
+  # For beta plugins and torrent blocker
+  hostNetwork: false
+
   # Security best practice: allow passing an already existing secret (e.g., from Vault/ExternalSecrets)
   # If specified, the chart will not create its own Secret for SECRET_KEY
   existingSecret: ""

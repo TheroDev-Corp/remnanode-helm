@@ -21,6 +21,10 @@ spec:
       {{- end }}
     spec:
       automountServiceAccountToken: false
+      
+      hostNetwork: {{ .Values.node.hostNetwork | default false }}
+      dnsPolicy: {{ if .Values.node.hostNetwork }}ClusterFirstWithHostNet{{ else }}ClusterFirst{{ end }}
+
       initContainers:
       - name: db-downloader
         image: curlimages/curl:8.18.0
