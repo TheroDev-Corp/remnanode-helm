@@ -22,6 +22,7 @@ spec:
     spec:
       automountServiceAccountToken: false
       
+      # Enable HostNetwork for Xray (Required for nftables plugins like Torrent Blocker)
       hostNetwork: {{ .Values.node.hostNetwork | default false }}
       dnsPolicy: {{ if .Values.node.hostNetwork }}ClusterFirstWithHostNet{{ else }}ClusterFirst{{ end }}
 
@@ -39,15 +40,11 @@ spec:
                 local dest=$2
                 echo "---"
                 echo "[STEP] Downloading $(basename $dest)..."
-                # --connect-timeout 15: Fail if connection is not established within 15s
-                # --max-time 300: Fail if the whole download takes more than 5 minutes
-                # --retry 3: Retry on transient failures
                 if curl -sSL --connect-timeout 15 --max-time 300 --retry 3 -o "$dest" "$url"; then
                     echo "[OK] $(basename $dest) downloaded successfully."
                     ls -lh "$dest"
                 else
                     echo "[WARNING] Failed to download $(basename $dest). Skipping..."
-                    # Ensure the file exists so the subPath mount in the main container doesn't fail
                     [ ! -f "$dest" ] && touch "$dest"
                 fi
             }
@@ -62,17 +59,6 @@ spec:
           mountPath: /data
 
       containers:
-        {{- if .Values.website.enabled }}
-        - name: website
-          image: "{{ .Values.website.image.repository }}:{{ .Values.website.image.tag }}"
-          imagePullPolicy: {{ .Values.website.image.pullPolicy }}
-          ports:
-            - containerPort: 80
-              name: http
-          resources:
-            {{- toYaml .Values.website.resources | nindent 12 }}
-        {{- end }}
-
         - name: remnanode
           image: "{{ .Values.node.image.repository }}:{{ .Values.node.image.tag }}"
           securityContext:
@@ -91,7 +77,7 @@ spec:
           resources:
             {{- toYaml .Values.node.resources | nindent 12 }}
           ports:
-            # Management API Port (exposed via HostPort for mTLS)
+            # Management API Port
             - containerPort: {{ .Values.node.apiPort }}
               name: api
               protocol: TCP
