@@ -4,8 +4,6 @@ metadata:
   name: {{ include "remnanode.fullname" . }}-geodata
   labels:
     {{- include "remnanode.labels" . | nindent 4 }}
-  annotations:
-    "argocd.argoproj.io/sync-wave": "-2"
 spec:
   accessModes:
     - ReadWriteOnce
