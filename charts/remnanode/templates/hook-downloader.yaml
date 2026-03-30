@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "remnanode.fullname" . }}-pre-sync-downloader
+  name: {{ include "remnanode.fullname" . }}-sync-geo
   labels:
     {{- include "remnanode.labels" . | nindent 4 }}
   annotations:
@@ -10,12 +10,9 @@ metadata:
     "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
 spec:
   template:
-    metadata:
-      name: {{ include "remnanode.fullname" . }}-pre-sync-downloader
-      labels:
-        app.kubernetes.io/component: pre-sync-hook
     spec:
-      restartPolicy: Never
+      securityContext:
+        runAsUser: 0
       containers:
       - name: downloader
         image: curlimages/curl:8.18.0
@@ -23,13 +20,13 @@ spec:
         volumeMounts:
         - name: scripts
           mountPath: /scripts
-        - name: xray-data-cache
+        - name: storage
           mountPath: /data
+      restartPolicy: OnFailure
       volumes:
       - name: scripts
         configMap:
           name: {{ include "remnanode.fullname" . }}-downloader-script
-      - name: xray-data-cache
-        hostPath:
-          path: {{ printf "%s/%s-data" .Values.node.dataDir (include "remnanode.fullname" .) }}
-          type: DirectoryOrCreate
+      - name: storage
+        persistentVolumeClaim:
+          claimName: {{ include "remnanode.fullname" . }}-geodata

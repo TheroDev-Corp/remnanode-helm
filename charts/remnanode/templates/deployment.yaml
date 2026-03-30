@@ -15,13 +15,10 @@ spec:
     metadata:
       labels:
         {{- include "remnanode.selectorLabels" . | nindent 8 }}
-      {{- if not .Values.node.existingSecret }}
       annotations:
-        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
-      {{- end }}
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-downloader.yaml") . | sha256sum }}
     spec:
       automountServiceAccountToken: false
-      
       hostNetwork: {{ .Values.node.hostNetwork | default false }}
       dnsPolicy: {{ if .Values.node.hostNetwork }}ClusterFirstWithHostNet{{ else }}ClusterFirst{{ end }}
 
@@ -41,43 +38,35 @@ spec:
                   key: SECRET_KEY
             - name: XRAY_LOCATION_ASSET
               value: /usr/local/bin
-          resources:
-            {{- toYaml .Values.node.resources | nindent 12 }}
           ports:
             - containerPort: {{ .Values.node.apiPort }}
               name: api
               protocol: TCP
+              {{- if .Values.node.hostNetwork }}
               hostPort: {{ .Values.node.apiPort }}
-
+              {{- end }}
             {{- range .Values.inbounds }}
             - containerPort: {{ .port }}
               name: tcp-{{ .port }}
               protocol: TCP
-              {{- if eq .mode "direct" }}
+              {{- if and $.Values.node.hostNetwork (eq .mode "direct") }}
               hostPort: {{ .port }}
               {{- end }}
-
-            {{- if eq .mode "direct" }}
-            - containerPort: {{ .port }}
-              name: udp-{{ .port }}
-              protocol: UDP
-              hostPort: {{ .port }}
             {{- end }}
-            {{- end }}
-
           volumeMounts:
-            - name: xray-data-cache
+            - name: geodata
               mountPath: /usr/local/bin/geoip.dat
               subPath: geoip.dat
-            - name: xray-data-cache
+            - name: geodata
               mountPath: /usr/local/bin/geosite.dat
               subPath: geosite.dat
-            - name: xray-data-cache
+            - name: geodata
               mountPath: /usr/local/bin/zapret.dat
               subPath: zapret.dat
+          resources:
+            {{- toYaml .Values.node.resources | nindent 12 }}
 
       volumes:
-      - name: xray-data-cache
-        hostPath:
-          path: {{ printf "%s/%s-data" .Values.node.dataDir (include "remnanode.fullname" .) }}
-          type: DirectoryOrCreate
+      - name: geodata
+        persistentVolumeClaim:
+          claimName: {{ include "remnanode.fullname" . }}-geodata

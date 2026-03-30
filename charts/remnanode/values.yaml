@@ -45,6 +45,11 @@ node:
   # For beta plugins and torrent blocker
   hostNetwork: false
 
+  # Storage parameters for geo-databases
+  geodata:
+    storageClassName: ""
+    size: 512Mi
+
   # geosites and geoip cache directory
   dataDir: "/var/lib/remnanode"
 

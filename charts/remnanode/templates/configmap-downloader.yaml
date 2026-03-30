@@ -11,28 +11,25 @@ data:
   download.sh: |
     #!/bin/sh
     set -e
-    
-    echo ">>> Starting Database Download Process..."
-    mkdir -p /data
+    DEST_DIR="/data"
+    mkdir -p $DEST_DIR
     
     download_file() {
         local url=$1
-        local dest=$2
-        echo "---"
-        echo "[STEP] Downloading $(basename $dest)..."
-        
+        local file=$2
+        local dest="$DEST_DIR/$file"
+        echo "[STEP] Downloading $file..."
         if curl -sSL --connect-timeout 15 --max-time 300 --retry 3 -o "$dest.tmp" "$url"; then
             mv "$dest.tmp" "$dest"
-            echo "[OK] $(basename $dest) downloaded successfully."
-            ls -lh "$dest"
+            chmod 644 "$dest"
+            echo "[OK] $file updated."
         else
-            echo "[ERROR] Failed to download $(basename $dest)."
+            echo "[ERROR] Failed to download $file"
             exit 1
         fi
     }
 
-    download_file "https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat" "/data/zapret.dat"
-    download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat" "/data/geoip.dat"
-    download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat" "/data/geosite.dat"
-
-    echo ">>> Database update step finished successfully."
+    download_file "https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat" "zapret.dat"
+    download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat" "geoip.dat"
+    download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat" "geosite.dat"
+    echo ">>> All files downloaded successfully."
