@@ -4,28 +4,38 @@ metadata:
   name: {{ include "remnanode.fullname" . }}-downloader-script
   labels:
     {{- include "remnanode.labels" . | nindent 4 }}
-  annotations:
-    "argocd.argoproj.io/sync-wave": "-2"
 data:
   download.sh: |
     #!/bin/sh
     set -e
     DEST_DIR="/data"
     mkdir -p $DEST_DIR
+    
+    MODE=${1:-"update"} # "init" или "update"
+
     download_file() {
         local url=$1
         local file=$2
         local dest="$DEST_DIR/$file"
+        
+        if [ "$MODE" = "init" ] && [ -s "$dest" ]; then
+            echo "[SKIP] $file already exists. Skipping download to ensure 0-downtime startup."
+            return 0
+        fi
+
         echo "[STEP] Downloading $file..."
         if curl -sSL --connect-timeout 15 --max-time 300 --retry 3 -o "$dest.tmp" "$url"; then
             mv "$dest.tmp" "$dest"
             chmod 644 "$dest"
-            echo "[OK] $file updated."
+            echo "[OK] $file updated successfully."
         else
             echo "[ERROR] Failed to download $file"
             exit 1
         fi
     }
+
+    echo "=== Starting Geodata Download (Mode: $MODE) ==="
     download_file "https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat" "zapret.dat"
     download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat" "geoip.dat"
     download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat" "geosite.dat"
+    echo "=== Finished ==="

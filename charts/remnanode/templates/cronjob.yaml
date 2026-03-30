@@ -2,40 +2,29 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ include "remnanode.fullname" . }}-daily-update
+  name: {{ include "remnanode.fullname" . }}-daily-restart
   labels:
     {{- include "remnanode.labels" . | nindent 4 }}
 spec:
   schedule: {{ .Values.autoUpdate.schedule | quote }}
+  concurrencyPolicy: Forbid
   jobTemplate:
     spec:
       template:
         spec:
           serviceAccountName: {{ include "remnanode.fullname" . }}-updater
           securityContext:
-            runAsUser: 0
-          initContainers:
-          - name: download-fresh-data
-            image: curlimages/curl:8.18.0
-            command: ["/bin/sh", "/scripts/download.sh"]
-            volumeMounts:
-            - name: scripts
-              mountPath: /scripts
-            - name: storage
-              mountPath: /data
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
           containers:
           - name: kubectl-restart
             image: "{{ .Values.autoUpdate.image.repository }}:{{ .Values.autoUpdate.image.tag }}"
             command:
             - /bin/sh
             - -c
-            - kubectl rollout restart deployment/{{ include "remnanode.fullname" . }}
+            - |
+              echo "Triggering daily rollout restart to apply new geodata..."
+              kubectl rollout restart deployment/{{ include "remnanode.fullname" . }}
           restartPolicy: OnFailure
-          volumes:
-          - name: scripts
-            configMap:
-              name: {{ include "remnanode.fullname" . }}-downloader-script
-          - name: storage
-            persistentVolumeClaim:
-              claimName: {{ include "remnanode.fullname" . }}-geodata
 {{- end }}

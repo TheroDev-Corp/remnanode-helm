@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "remnanode.fullname" . }}
-  annotations:
-    "argocd.argoproj.io/sync-wave": "0"
   labels:
     {{- include "remnanode.labels" . | nindent 4 }}
 spec:
@@ -19,11 +17,20 @@ spec:
         {{- include "remnanode.selectorLabels" . | nindent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap-downloader.yaml") . | sha256sum }}
-
     spec:
       automountServiceAccountToken: false
       hostNetwork: {{ .Values.node.hostNetwork | default false }}
       dnsPolicy: {{ if .Values.node.hostNetwork }}ClusterFirstWithHostNet{{ else }}ClusterFirst{{ end }}
+
+      initContainers:
+        - name: init-downloader
+          image: curlimages/curl:8.18.0
+          command: ["/bin/sh", "/scripts/download.sh", "init"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: geodata
+              mountPath: /data
 
       containers:
         - name: remnanode
@@ -40,7 +47,7 @@ spec:
                   name: {{ coalesce .Values.node.existingSecret (printf "%s-secrets" (include "remnanode.fullname" .)) }}
                   key: SECRET_KEY
             - name: XRAY_LOCATION_ASSET
-              value: /usr/local/bin
+              value: /data
           ports:
             - containerPort: {{ .Values.node.apiPort }}
               name: api
@@ -58,18 +65,38 @@ spec:
             {{- end }}
           volumeMounts:
             - name: geodata
-              mountPath: /usr/local/bin/geoip.dat
-              subPath: geoip.dat
-            - name: geodata
-              mountPath: /usr/local/bin/geosite.dat
-              subPath: geosite.dat
-            - name: geodata
-              mountPath: /usr/local/bin/zapret.dat
-              subPath: zapret.dat
+              mountPath: /data
           resources:
             {{- toYaml .Values.node.resources | nindent 12 }}
+        - name: background-updater
+          image: curlimages/curl:8.18.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "[SIDECAR] Started. Will update geodata every 12 hours in background."
+              while true; do
+                sleep 43200
+                /bin/sh /scripts/download.sh update
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: geodata
+              mountPath: /data
 
       volumes:
-      - name: geodata
-        persistentVolumeClaim:
-          claimName: {{ include "remnanode.fullname" . }}-geodata
+        - name: geodata
+          persistentVolumeClaim:
+            claimName: {{ include "remnanode.fullname" . }}-geodata
+        - name: scripts
+          configMap:
+            name: {{ include "remnanode.fullname" . }}-downloader-script
+            defaultMode: 0755
