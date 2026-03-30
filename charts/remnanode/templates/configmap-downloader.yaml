@@ -18,24 +18,34 @@ data:
         local file=$2
         local dest="$DEST_DIR/$file"
         
-        if [ "$MODE" = "init" ] && [ -s "$dest" ]; then
+        if[ "$MODE" = "init" ] && [ -s "$dest" ]; then
             echo "[SKIP] $file already exists. Skipping download to ensure 0-downtime startup."
             return 0
         fi
 
         echo "[STEP] Downloading $file..."
-        if curl -sSL --connect-timeout 15 --max-time 300 --retry 3 -o "$dest.tmp" "$url"; then
+        
+        if STATS=$(curl -sSLf --connect-timeout 15 --max-time 300 --retry 3 \
+            -w "%{time_total} %{size_download} %{speed_download}" \
+            -o "$dest.tmp" "$url"); then
+            
             mv "$dest.tmp" "$dest"
             chmod 644 "$dest"
-            echo "[OK] $file updated successfully."
+            
+            echo "$STATS" | awk -v f="$file" '{
+                size_mb = $2 / 1048576;
+                speed_mb = $3 / 1048576;
+                printf "[OK] %s updated successfully.\n", f;
+                printf "     └─ Size: %.2f MB | Time: %.2f s | Speed: %.2f MB/s\n", size_mb, $1, speed_mb;
+            }'
         else
             echo "[ERROR] Failed to download $file"
             exit 1
         fi
     }
 
-    echo "=== Starting Geodata Download (Mode: $MODE) ==="
+    echo "Starting Geodata Download (Mode: $MODE)"
     download_file "https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat" "zapret.dat"
     download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat" "geoip.dat"
     download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat" "geosite.dat"
-    echo "=== Finished ==="
+    echo "Finished"
