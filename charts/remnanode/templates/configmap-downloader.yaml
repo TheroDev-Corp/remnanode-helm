@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "remnanode.fullname" . }}-downloader-script
+  labels:
+    {{- include "remnanode.labels" . | nindent 4 }}
+data:
+  download.sh: |
+    #!/bin/sh
+    set -e
+    
+    echo ">>> Starting Database Download Process..."
+    mkdir -p /data
+    
+    download_file() {
+        local url=$1
+        local dest=$2
+        echo "---"
+        echo "[STEP] Downloading $(basename $dest)..."
+        
+        if curl -sSL --connect-timeout 15 --max-time 300 --retry 3 -o "$dest.tmp" "$url"; then
+            mv "$dest.tmp" "$dest"
+            echo "[OK] $(basename $dest) downloaded successfully."
+            ls -lh "$dest"
+        else
+            echo "[ERROR] Failed to download $(basename $dest)."
+            exit 1
+        fi
+    }
+
+    download_file "https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat" "/data/zapret.dat"
+    download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat" "/data/geoip.dat"
+    download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat" "/data/geosite.dat"
+
+    echo ">>> Database update step finished successfully."

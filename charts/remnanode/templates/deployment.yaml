@@ -22,41 +22,8 @@ spec:
     spec:
       automountServiceAccountToken: false
       
-      # Enable HostNetwork for Xray (Required for nftables plugins like Torrent Blocker)
       hostNetwork: {{ .Values.node.hostNetwork | default false }}
       dnsPolicy: {{ if .Values.node.hostNetwork }}ClusterFirstWithHostNet{{ else }}ClusterFirst{{ end }}
-
-      initContainers:
-      - name: db-downloader
-        image: curlimages/curl:8.18.0
-        command: ["/bin/sh", "-c"]
-        args:
-          - |
-            echo ">>> Starting Database Download Process..."
-            mkdir -p /data
-            
-            download_file() {
-                local url=$1
-                local dest=$2
-                echo "---"
-                echo "[STEP] Downloading $(basename $dest)..."
-                if curl -sSL --connect-timeout 15 --max-time 300 --retry 3 -o "$dest" "$url"; then
-                    echo "[OK] $(basename $dest) downloaded successfully."
-                    ls -lh "$dest"
-                else
-                    echo "[WARNING] Failed to download $(basename $dest). Skipping..."
-                    [ ! -f "$dest" ] && touch "$dest"
-                fi
-            }
-
-            download_file "https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat" "/data/zapret.dat"
-            download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat" "/data/geoip.dat"
-            download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat" "/data/geosite.dat"
-
-            echo ">>> Database update step finished."
-        volumeMounts:
-        - name: xray-data
-          mountPath: /data
 
       containers:
         - name: remnanode
@@ -77,16 +44,12 @@ spec:
           resources:
             {{- toYaml .Values.node.resources | nindent 12 }}
           ports:
-            # Management API Port
             - containerPort: {{ .Values.node.apiPort }}
               name: api
               protocol: TCP
               hostPort: {{ .Values.node.apiPort }}
 
-            # Dynamic Inbound Ports
             {{- range .Values.inbounds }}
-            
-            # TCP Rule
             - containerPort: {{ .port }}
               name: tcp-{{ .port }}
               protocol: TCP
@@ -94,27 +57,27 @@ spec:
               hostPort: {{ .port }}
               {{- end }}
 
-            # UDP Rule (Only for Direct mode)
             {{- if eq .mode "direct" }}
             - containerPort: {{ .port }}
               name: udp-{{ .port }}
               protocol: UDP
               hostPort: {{ .port }}
             {{- end }}
-
             {{- end }}
 
           volumeMounts:
-            - name: xray-data
+            - name: xray-data-cache
               mountPath: /usr/local/bin/geoip.dat
               subPath: geoip.dat
-            - name: xray-data
+            - name: xray-data-cache
               mountPath: /usr/local/bin/geosite.dat
               subPath: geosite.dat
-            - name: xray-data
+            - name: xray-data-cache
               mountPath: /usr/local/bin/zapret.dat
               subPath: zapret.dat
 
       volumes:
-      - name: xray-data
-        emptyDir: {}
+      - name: xray-data-cache
+        hostPath:
+          path: {{ printf "%s/%s-data" .Values.node.dataDir (include "remnanode.fullname" .) }}
+          type: DirectoryOrCreate

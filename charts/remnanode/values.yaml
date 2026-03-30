@@ -45,6 +45,9 @@ node:
   # For beta plugins and torrent blocker
   hostNetwork: false
 
+  # geosites and geoip cache directory
+  dataDir: "/var/lib/remnanode"
+
   # Security best practice: allow passing an already existing secret (e.g., from Vault/ExternalSecrets)
   # If specified, the chart will not create its own Secret for SECRET_KEY
   existingSecret: ""

@@ -7,7 +7,7 @@ metadata:
     {{- include "remnanode.labels" . | nindent 4 }}
 spec:
   schedule: {{ .Values.autoUpdate.schedule | quote }}
-  concurrencyPolicy: Forbid # Prevent concurrent executions of the job
+  concurrencyPolicy: Forbid
   jobTemplate:
     spec:
       template:
@@ -15,8 +15,18 @@ spec:
           labels:
             app.kubernetes.io/component: cronjob
         spec:
-          # Bind the service account ONLY to the CronJob
           serviceAccountName: {{ include "remnanode.fullname" . }}-updater
+          
+          initContainers:
+          - name: background-downloader
+            image: curlimages/curl:8.18.0
+            command:["/bin/sh", "/scripts/download.sh"]
+            volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: xray-data-cache
+              mountPath: /data
+
           containers:
           - name: kubectl
             image: "{{ .Values.autoUpdate.image.repository }}:{{ .Values.autoUpdate.image.tag }}"
@@ -24,6 +34,17 @@ spec:
             command:
             - /bin/sh
             - -c
-            - kubectl rollout restart deployment/{{ include "remnanode.fullname" . }}
+            - |
+              echo ">>> Triggering instantaneous restart of Xray pod..."
+              kubectl rollout restart deployment/{{ include "remnanode.fullname" . }}
           restartPolicy: OnFailure
+          
+          volumes:
+          - name: scripts
+            configMap:
+              name: {{ include "remnanode.fullname" . }}-downloader-script
+          - name: xray-data-cache
+            hostPath:
+              path: {{ printf "%s/%s-data" .Values.node.dataDir (include "remnanode.fullname" .) }}
+              type: DirectoryOrCreate
 {{- end }}
