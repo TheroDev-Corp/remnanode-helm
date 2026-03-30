@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "remnanode.fullname" . }}
+  annotations:
+    "argocd.argoproj.io/sync-wave": "0"
   labels:
     {{- include "remnanode.labels" . | nindent 4 }}
 spec:
@@ -17,6 +19,7 @@ spec:
         {{- include "remnanode.selectorLabels" . | nindent 8 }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap-downloader.yaml") . | sha256sum }}
+
     spec:
       automountServiceAccountToken: false
       hostNetwork: {{ .Values.node.hostNetwork | default false }}

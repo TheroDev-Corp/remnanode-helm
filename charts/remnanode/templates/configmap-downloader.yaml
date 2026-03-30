@@ -5,15 +5,13 @@ metadata:
   labels:
     {{- include "remnanode.labels" . | nindent 4 }}
   annotations:
-    "helm.sh/hook": pre-install,pre-upgrade
-    "helm.sh/hook-weight": "-10"
+    "argocd.argoproj.io/sync-wave": "-5"
 data:
   download.sh: |
     #!/bin/sh
     set -e
     DEST_DIR="/data"
     mkdir -p $DEST_DIR
-    
     download_file() {
         local url=$1
         local file=$2
@@ -28,8 +26,6 @@ data:
             exit 1
         fi
     }
-
     download_file "https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat" "zapret.dat"
     download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat" "geoip.dat"
     download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat" "geosite.dat"
-    echo ">>> All files downloaded successfully."
