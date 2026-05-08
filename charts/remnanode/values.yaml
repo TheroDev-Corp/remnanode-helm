@@ -45,6 +45,13 @@ node:
   # For beta plugins and torrent blocker
   hostNetwork: false
 
+  # TLS certificate settings (required for Hysteria/QUIC)
+  tlsMount:
+    enabled: false
+    secretName: ""             # Name of the Kubernetes TLS Secret (e.g., from cert-manager)
+    mountPath: "/etc/xray/certs" # Directory where tls.crt and tls.key will be mounted
+    defaultMode: 0400          # File permissions (0400 = read-only for owner)
+
   # Storage parameters for geo-databases
   geodata:
     storageClassName: ""
@@ -73,7 +80,8 @@ ingress:
 
 # Configuration of ports and routing modes
 # Supported modes: ingress-sni, ingress-path, ingress-xhttp, ingress-grpc, direct
-inbounds: []
+# Protocol: TCP (default) or UDP (required for Hysteria)
+inbounds:[]
 
 # Examples:
 #
@@ -84,37 +92,8 @@ inbounds: []
 #    sni:
 #      - "www.vk.com"
 #
-# 2. TROJAN TCP REALITY 443 -> Internal port 10002
-#  - name: trojan-queue
-#    port: 10002
-#    mode: ingress-sni
-#    sni:
-#      - "queuev4.vk.com"
-#
-# 3. VLESS WS 80/443 -> Internal port 10003
-#  - name: vless-ws
-#    port: 10003
-#    mode: ingress-path
-#    path: "/api/media/"
-#
-# 4. TROJAN XHTTP 80/443 -> Internal port 10004
-#  - name: trojan-xhttp
-#    port: 10004
-#    mode: ingress-xhttp
-#    path: "/api/video/"
-#
-# 5. TROJAN GRPC 80/443 -> Internal port 10005
-#  - name: trojan-grpc
-#    port: 10005
-#    mode: ingress-grpc
-#    serviceName: "k8sSecurityTraffic"
-#
-# 6. SHADOWSOCKS -> Direct port 993
-#  - name: ss2022-std
-#    port: 993
+# 2. HYSTERIA -> Direct port 8443 (UDP)
+#  - name: hysteria-node
+#    port: 8443
 #    mode: direct
-#
-# 7. VLESS REALITY FALLBACK -> Direct port 54223
-#  - name: vless-fallback
-#    port: 54223
-#    mode: direct
+#    protocol: UDP

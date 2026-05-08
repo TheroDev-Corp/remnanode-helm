@@ -57,8 +57,8 @@ spec:
               {{- end }}
             {{- range .Values.inbounds }}
             - containerPort: {{ .port }}
-              name: tcp-{{ .port }}
-              protocol: TCP
+              name: {{ lower (default "tcp" .protocol) }}-{{ .port }}
+              protocol: {{ default "TCP" .protocol | upper }}
               {{- if and $.Values.node.hostNetwork (eq .mode "direct") }}
               hostPort: {{ .port }}
               {{- end }}
@@ -66,6 +66,11 @@ spec:
           volumeMounts:
             - name: geodata
               mountPath: /data
+            {{- if .Values.node.tlsMount.enabled }}
+            - name: tls-cert
+              mountPath: {{ .Values.node.tlsMount.mountPath }}
+              readOnly: true
+            {{- end }}
           resources:
             {{- toYaml .Values.node.resources | nindent 12 }}
         - name: background-updater
@@ -100,3 +105,9 @@ spec:
           configMap:
             name: {{ include "remnanode.fullname" . }}-downloader-script
             defaultMode: 0755
+        {{- if .Values.node.tlsMount.enabled }}
+        - name: tls-cert
+          secret:
+            secretName: {{ .Values.node.tlsMount.secretName }}
+            defaultMode: {{ .Values.node.tlsMount.defaultMode }}
+        {{- end }}
