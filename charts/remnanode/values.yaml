@@ -81,7 +81,7 @@ ingress:
 # Configuration of ports and routing modes
 # Supported modes: ingress-sni, ingress-path, ingress-xhttp, ingress-grpc, direct
 # Protocol: TCP (default) or UDP (required for Hysteria)
-inbounds:[]
+inbounds: []
 
 # Examples:
 #
