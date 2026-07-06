@@ -15,48 +15,22 @@ spec:
     metadata:
       labels:
         {{- include "remnanode.selectorLabels" . | nindent 8 }}
-      {{- if not .Values.node.existingSecret }}
       annotations:
-        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
-      {{- end }}
+        checksum/config: {{ include (print $.Template.BasePath "/configmap-downloader.yaml") . | sha256sum }}
     spec:
       automountServiceAccountToken: false
-      
-      # Enable HostNetwork for Xray (Required for nftables plugins like Torrent Blocker)
-      hostNetwork: {{ .Values.node.hostNetwork | default false }}
+      hostNetwork: {{ if .Values.node.hostNetwork }}true{{ else }}false{{ end }}
       dnsPolicy: {{ if .Values.node.hostNetwork }}ClusterFirstWithHostNet{{ else }}ClusterFirst{{ end }}
 
       initContainers:
-      - name: db-downloader
-        image: curlimages/curl:8.18.0
-        command: ["/bin/sh", "-c"]
-        args:
-          - |
-            echo ">>> Starting Database Download Process..."
-            mkdir -p /data
-            
-            download_file() {
-                local url=$1
-                local dest=$2
-                echo "---"
-                echo "[STEP] Downloading $(basename $dest)..."
-                if curl -sSL --connect-timeout 15 --max-time 300 --retry 3 -o "$dest" "$url"; then
-                    echo "[OK] $(basename $dest) downloaded successfully."
-                    ls -lh "$dest"
-                else
-                    echo "[WARNING] Failed to download $(basename $dest). Skipping..."
-                    [ ! -f "$dest" ] && touch "$dest"
-                fi
-            }
-
-            download_file "https://github.com/kutovoys/ru_gov_zapret/releases/latest/download/zapret.dat" "/data/zapret.dat"
-            download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geoip.dat" "/data/geoip.dat"
-            download_file "https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release/geosite.dat" "/data/geosite.dat"
-
-            echo ">>> Database update step finished."
-        volumeMounts:
-        - name: xray-data
-          mountPath: /data
+        - name: init-downloader
+          image: curlimages/curl:8.18.0
+          command: ["/bin/sh", "/scripts/download.sh", "init"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: geodata
+              mountPath: /data
 
       containers:
         - name: remnanode
@@ -73,48 +47,67 @@ spec:
                   name: {{ coalesce .Values.node.existingSecret (printf "%s-secrets" (include "remnanode.fullname" .)) }}
                   key: SECRET_KEY
             - name: XRAY_LOCATION_ASSET
-              value: /usr/local/bin
-          resources:
-            {{- toYaml .Values.node.resources | nindent 12 }}
+              value: /data
           ports:
-            # Management API Port
             - containerPort: {{ .Values.node.apiPort }}
               name: api
               protocol: TCP
+              {{- if .Values.node.hostNetwork }}
               hostPort: {{ .Values.node.apiPort }}
-
-            # Dynamic Inbound Ports
+              {{- end }}
             {{- range .Values.inbounds }}
-            
-            # TCP Rule
             - containerPort: {{ .port }}
-              name: tcp-{{ .port }}
-              protocol: TCP
-              {{- if eq .mode "direct" }}
+              name: {{ lower (default "tcp" .protocol) }}-{{ .port }}
+              protocol: {{ default "TCP" .protocol | upper }}
+              {{- if and $.Values.node.hostNetwork (eq .mode "direct") }}
               hostPort: {{ .port }}
               {{- end }}
-
-            # UDP Rule (Only for Direct mode)
-            {{- if eq .mode "direct" }}
-            - containerPort: {{ .port }}
-              name: udp-{{ .port }}
-              protocol: UDP
-              hostPort: {{ .port }}
             {{- end }}
-
-            {{- end }}
-
           volumeMounts:
-            - name: xray-data
-              mountPath: /usr/local/bin/geoip.dat
-              subPath: geoip.dat
-            - name: xray-data
-              mountPath: /usr/local/bin/geosite.dat
-              subPath: geosite.dat
-            - name: xray-data
-              mountPath: /usr/local/bin/zapret.dat
-              subPath: zapret.dat
+            - name: geodata
+              mountPath: /data
+            {{- if .Values.node.tlsMount.enabled }}
+            - name: tls-cert
+              mountPath: {{ .Values.node.tlsMount.mountPath }}
+              readOnly: true
+            {{- end }}
+          resources:
+            {{- toYaml .Values.node.resources | nindent 12 }}
+        - name: background-updater
+          image: curlimages/curl:8.18.0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "[SIDECAR] Started. Will update geodata every 12 hours in background."
+              while true; do
+                sleep 43200
+                /bin/sh /scripts/download.sh update
+              done
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+            - name: geodata
+              mountPath: /data
 
       volumes:
-      - name: xray-data
-        emptyDir: {}
+        - name: geodata
+          persistentVolumeClaim:
+            claimName: {{ include "remnanode.fullname" . }}-geodata
+        - name: scripts
+          configMap:
+            name: {{ include "remnanode.fullname" . }}-downloader-script
+            defaultMode: 0755
+        {{- if .Values.node.tlsMount.enabled }}
+        - name: tls-cert
+          secret:
+            secretName: {{ .Values.node.tlsMount.secretName }}
+            defaultMode: {{ .Values.node.tlsMount.defaultMode }}
+        {{- end }}

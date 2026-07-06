@@ -2,28 +2,29 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ include "remnanode.fullname" . }}-daily-update
+  name: {{ include "remnanode.fullname" . }}-daily-restart
   labels:
     {{- include "remnanode.labels" . | nindent 4 }}
 spec:
   schedule: {{ .Values.autoUpdate.schedule | quote }}
-  concurrencyPolicy: Forbid # Prevent concurrent executions of the job
+  concurrencyPolicy: Forbid
   jobTemplate:
     spec:
       template:
-        metadata:
-          labels:
-            app.kubernetes.io/component: cronjob
         spec:
-          # Bind the service account ONLY to the CronJob
           serviceAccountName: {{ include "remnanode.fullname" . }}-updater
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
           containers:
-          - name: kubectl
+          - name: kubectl-restart
             image: "{{ .Values.autoUpdate.image.repository }}:{{ .Values.autoUpdate.image.tag }}"
-            imagePullPolicy: {{ .Values.autoUpdate.image.pullPolicy }}
             command:
             - /bin/sh
             - -c
-            - kubectl rollout restart deployment/{{ include "remnanode.fullname" . }}
+            - |
+              echo "Triggering daily rollout restart to apply new geodata..."
+              kubectl rollout restart deployment/{{ include "remnanode.fullname" . }}
           restartPolicy: OnFailure
 {{- end }}
