@@ -31,7 +31,7 @@ website:
 node:
   image:
     repository: remnawave/node
-    tag: 2.7.0
+    tag: 2.8.0
     pullPolicy: IfNotPresent
   apiPort: 2222
   resources:
@@ -48,9 +48,9 @@ node:
   # TLS certificate settings (required for Hysteria/QUIC)
   tlsMount:
     enabled: false
-    secretName: ""             # Name of the Kubernetes TLS Secret (e.g., from cert-manager)
+    secretName: "" # Name of the Kubernetes TLS Secret (e.g., from cert-manager)
     mountPath: "/etc/xray/certs" # Directory where tls.crt and tls.key will be mounted
-    defaultMode: 0400          # File permissions (0400 = read-only for owner)
+    defaultMode: 0400 # File permissions (0400 = read-only for owner)
 
   # Storage parameters for geo-databases
   geodata:
