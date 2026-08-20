@@ -31,7 +31,7 @@ website:
 node:
   image:
     repository: remnawave/node
-    tag: 2.8.0
+    tag: 3.3.2
     pullPolicy: IfNotPresent
   apiPort: 2222
   resources:
@@ -79,7 +79,7 @@ ingress:
     secretName: ""
 
 # Configuration of ports and routing modes
-# Supported modes: ingress-sni, ingress-path, ingress-xhttp, ingress-grpc, direct
+# Supported modes: ingress-sni, ingress-path, ingress-xhttp, ingress-grpc, ingress-udp, direct
 # Protocol: TCP (default) or UDP (required for Hysteria)
 inbounds: []
 
@@ -97,3 +97,10 @@ inbounds: []
 #    port: 8443
 #    mode: direct
 #    protocol: UDP
+#
+# 3. HYSTERIA -> Ingress 443 (UDP) -> Internal port 10003
+#  - name: hysteria-443
+#    port: 10003
+#    mode: ingress-udp
+#    protocol: UDP
+#    entryPoint: websecure
