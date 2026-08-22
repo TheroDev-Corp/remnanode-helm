@@ -3,7 +3,7 @@ global:
 
 # Settings for automatic database updates (geoip/geosite/zapret) and node restarts
 autoUpdate:
-  enabled: true
+  enabled: false
   # Schedule in Cron format. Default: every day at 04:00 AM
   schedule: "0 4 * * *"
   # Kubectl image used to trigger the rollout restart
@@ -11,6 +11,12 @@ autoUpdate:
     repository: bitnami/kubectl
     tag: latest
     pullPolicy: IfNotPresent
+
+# Settings for geo-databases (geoip/geosite/zapret) and downloader init-container / sidecar
+geodata:
+  enabled: false
+  storageClassName: ""
+  size: 512Mi
 
 # Settings for the camouflage/fallback website
 website:
@@ -51,11 +57,6 @@ node:
     secretName: "" # Name of the Kubernetes TLS Secret (e.g., from cert-manager)
     mountPath: "/etc/xray/certs" # Directory where tls.crt and tls.key will be mounted
     defaultMode: 0400 # File permissions (0400 = read-only for owner)
-
-  # Storage parameters for geo-databases
-  geodata:
-    storageClassName: ""
-    size: 512Mi
 
   # geosites and geoip cache directory
   dataDir: "/var/lib/remnanode"

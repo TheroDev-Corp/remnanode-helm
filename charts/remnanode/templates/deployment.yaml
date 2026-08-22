@@ -15,13 +15,16 @@ spec:
     metadata:
       labels:
         {{- include "remnanode.selectorLabels" . | nindent 8 }}
+      {{- if .Values.geodata.enabled }}
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap-downloader.yaml") . | sha256sum }}
+      {{- end }}
     spec:
       automountServiceAccountToken: false
       hostNetwork: {{ if .Values.node.hostNetwork }}true{{ else }}false{{ end }}
       dnsPolicy: {{ if .Values.node.hostNetwork }}ClusterFirstWithHostNet{{ else }}ClusterFirst{{ end }}
 
+      {{- if .Values.geodata.enabled }}
       initContainers:
         - name: init-downloader
           image: curlimages/curl:8.18.0
@@ -31,6 +34,7 @@ spec:
               mountPath: /scripts
             - name: geodata
               mountPath: /data
+      {{- end }}
 
       containers:
         - name: remnanode
@@ -46,8 +50,10 @@ spec:
                 secretKeyRef:
                   name: {{ coalesce .Values.node.existingSecret (printf "%s-secrets" (include "remnanode.fullname" .)) }}
                   key: SECRET_KEY
+            {{- if .Values.geodata.enabled }}
             - name: XRAY_LOCATION_ASSET
               value: /data
+            {{- end }}
           ports:
             - containerPort: {{ .Values.node.apiPort }}
               name: api
@@ -64,8 +70,10 @@ spec:
               {{- end }}
             {{- end }}
           volumeMounts:
+            {{- if .Values.geodata.enabled }}
             - name: geodata
               mountPath: /data
+            {{- end }}
             {{- if .Values.node.tlsMount.enabled }}
             - name: tls-cert
               mountPath: {{ .Values.node.tlsMount.mountPath }}
@@ -73,6 +81,7 @@ spec:
             {{- end }}
           resources:
             {{- toYaml .Values.node.resources | nindent 12 }}
+        {{- if .Values.geodata.enabled }}
         - name: background-updater
           image: curlimages/curl:8.18.0
           command:
@@ -96,8 +105,10 @@ spec:
               mountPath: /scripts
             - name: geodata
               mountPath: /data
+        {{- end }}
 
       volumes:
+        {{- if .Values.geodata.enabled }}
         - name: geodata
           persistentVolumeClaim:
             claimName: {{ include "remnanode.fullname" . }}-geodata
@@ -105,6 +116,7 @@ spec:
           configMap:
             name: {{ include "remnanode.fullname" . }}-downloader-script
             defaultMode: 0755
+        {{- end }}
         {{- if .Values.node.tlsMount.enabled }}
         - name: tls-cert
           secret:
