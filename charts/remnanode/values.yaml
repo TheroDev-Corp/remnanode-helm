@@ -37,7 +37,7 @@ website:
 node:
   image:
     repository: remnawave/node
-    tag: 3.3.2
+    tag: "3.4.1"
     pullPolicy: IfNotPresent
   apiPort: 2222
   resources:
@@ -45,8 +45,8 @@ node:
       cpu: "100m"
       memory: "256Mi"
     limits:
-      cpu: "1000m"
-      memory: "1024Mi"
+      cpu: "100m"
+      memory: "256Mi"
 
   # For beta plugins and torrent blocker
   hostNetwork: false
