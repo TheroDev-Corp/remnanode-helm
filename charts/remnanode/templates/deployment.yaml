@@ -19,7 +19,7 @@ spec:
         {{- if .Values.geodata.enabled }}
         checksum/config: {{ include (print $.Template.BasePath "/configmap-downloader.yaml") . | sha256sum }}
         {{- end }}
-        {{- if and .Values.ioThrottling.enabled .Values.ioThrottling.cgroupIoMax }}
+        {{- if and .Values.ioThrottling (and .Values.ioThrottling.enabled .Values.ioThrottling.cgroupIoMax) }}
         io.container.cgroup.io.max: {{ .Values.ioThrottling.cgroupIoMax | quote }}
         {{- end }}
         {{- with .Values.podAnnotations }}
@@ -76,10 +76,10 @@ spec:
               {{- end }}
             {{- end }}
           volumeMounts:
-            {{- if .Values.tmpfs.enabled }}
+            {{- if and .Values.tmpfs .Values.tmpfs.enabled }}
             - name: ram-tmp
               mountPath: /tmp
-            {{- if .Values.tmpfs.cache.enabled }}
+            {{- if and .Values.tmpfs.cache .Values.tmpfs.cache.enabled }}
             - name: ram-cache
               mountPath: {{ .Values.tmpfs.cache.mountPath }}
             {{- end }}
@@ -122,16 +122,16 @@ spec:
         {{- end }}
 
       volumes:
-        {{- if .Values.tmpfs.enabled }}
+        {{- if and .Values.tmpfs .Values.tmpfs.enabled }}
         - name: ram-tmp
           emptyDir:
             medium: Memory
-            sizeLimit: {{ .Values.tmpfs.tmp.sizeLimit }}
-        {{- if .Values.tmpfs.cache.enabled }}
+            sizeLimit: {{ default "64Mi" (and .Values.tmpfs.tmp .Values.tmpfs.tmp.sizeLimit) }}
+        {{- if and .Values.tmpfs.cache .Values.tmpfs.cache.enabled }}
         - name: ram-cache
           emptyDir:
             medium: Memory
-            sizeLimit: {{ .Values.tmpfs.cache.sizeLimit }}
+            sizeLimit: {{ default "128Mi" .Values.tmpfs.cache.sizeLimit }}
         {{- end }}
         {{- end }}
         {{- if .Values.geodata.enabled }}
