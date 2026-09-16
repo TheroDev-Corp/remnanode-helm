@@ -33,6 +33,25 @@ website:
       cpu: "200m"
       memory: "128Mi"
 
+# Custom pod annotations
+podAnnotations: {}
+
+# Hardware/cgroup v2 Block I/O Throttling 
+ioThrottling:
+  enabled: false
+  # cgroup v2 io.max rule, e.g. "254:2 wiops=80 wbps=2097152"
+  # (Major:minor can be determined via 'cat /proc/diskstats' or 'stat -c "%t:%T" /dev/vda2')
+  cgroupIoMax: ""
+
+# In-memory tmpfs mounts to prevent disk write saturation 
+  enabled: true
+  tmp:
+    sizeLimit: 64Mi
+  cache:
+    enabled: false
+    mountPath: "/var/lib/remnanode"
+    sizeLimit: 128Mi
+
 # Xray core settings
 node:
   image:
@@ -44,9 +63,11 @@ node:
     requests:
       cpu: "100m"
       memory: "256Mi"
+      ephemeral-storage: "50Mi"
     limits:
-      cpu: "100m"
-      memory: "256Mi"
+      cpu: "300m"
+      memory: "384Mi"
+      ephemeral-storage: "250Mi"
 
   # For beta plugins and torrent blocker
   hostNetwork: false

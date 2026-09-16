@@ -15,10 +15,16 @@ spec:
     metadata:
       labels:
         {{- include "remnanode.selectorLabels" . | nindent 8 }}
-      {{- if .Values.geodata.enabled }}
       annotations:
+        {{- if .Values.geodata.enabled }}
         checksum/config: {{ include (print $.Template.BasePath "/configmap-downloader.yaml") . | sha256sum }}
-      {{- end }}
+        {{- end }}
+        {{- if and .Values.ioThrottling.enabled .Values.ioThrottling.cgroupIoMax }}
+        io.container.cgroup.io.max: {{ .Values.ioThrottling.cgroupIoMax | quote }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       automountServiceAccountToken: false
       hostNetwork: {{ if .Values.node.hostNetwork }}true{{ else }}false{{ end }}
@@ -70,6 +76,14 @@ spec:
               {{- end }}
             {{- end }}
           volumeMounts:
+            {{- if .Values.tmpfs.enabled }}
+            - name: ram-tmp
+              mountPath: /tmp
+            {{- if .Values.tmpfs.cache.enabled }}
+            - name: ram-cache
+              mountPath: {{ .Values.tmpfs.cache.mountPath }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.geodata.enabled }}
             - name: geodata
               mountPath: /data
@@ -108,6 +122,18 @@ spec:
         {{- end }}
 
       volumes:
+        {{- if .Values.tmpfs.enabled }}
+        - name: ram-tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.tmpfs.tmp.sizeLimit }}
+        {{- if .Values.tmpfs.cache.enabled }}
+        - name: ram-cache
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ .Values.tmpfs.cache.sizeLimit }}
+        {{- end }}
+        {{- end }}
         {{- if .Values.geodata.enabled }}
         - name: geodata
           persistentVolumeClaim:
